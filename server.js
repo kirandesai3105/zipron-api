@@ -633,7 +633,115 @@ app.get(
         "3.0.0"
     })
 );
+app.get(
+  "/api/history",
+  async (req, res) => {
+    try {
+      const productId =
+        req.query.productId || "";
 
+      const store =
+        req.query.store || "";
+
+      const title =
+        req.query.title || "";
+
+      const supabaseUrl =
+        process.env.SUPABASE_URL;
+
+      const supabaseKey =
+        process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
+        return res.status(500).json({
+          error:
+            "Supabase environment variables are not configured."
+        });
+      }
+
+      const params =
+        new URLSearchParams();
+
+      params.set(
+        "select",
+        "product_title,store,product_id,price,currency,checked_at"
+      );
+
+      params.set(
+        "order",
+        "checked_at.asc"
+      );
+
+      params.set(
+        "limit",
+        "100"
+      );
+
+      if (productId) {
+        params.set(
+          "product_id",
+          `eq.${productId}`
+        );
+      } else if (title) {
+        params.set(
+          "product_title",
+          `ilike.*${title.replace(
+            /[*(),]/g,
+            ""
+          )}*`
+        );
+      }
+
+      if (store) {
+        params.set(
+          "store",
+          `eq.${store}`
+        );
+      }
+
+      const response =
+        await fetch(
+          `${supabaseUrl.replace(
+            /\/+$/i,
+            ""
+          )}/rest/v1/price_history?${params.toString()}`,
+          {
+            headers: {
+              apikey: supabaseKey,
+
+              Authorization:
+                `Bearer ${supabaseKey}`
+            }
+          }
+        );
+
+      if (!response.ok) {
+        const body =
+          await response.text();
+
+        throw new Error(
+          `Supabase HTTP ${response.status}: ${body}`
+        );
+      }
+
+      const rows =
+        await response.json();
+
+      res.json({
+        history: rows
+      });
+
+    } catch (error) {
+
+      res.status(500).json({
+        error:
+          error.message ||
+          "Unable to load price history."
+      });
+
+    }
+  }
+);
 app.listen(
   PORT,
   () =>
